@@ -1,0 +1,43 @@
+{
+  "name": "nova-erp",
+  "version": "0.0.1",
+  "description": "Open-source ERP engine built from first principles, where AI agents are first-class participants.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "test:int": "pnpm -r test:integration",
+    "test:load": "pnpm -r test:load",
+    "dev": "pnpm --filter @nova/api dev",
+    "lint": "eslint packages/ --ext .ts",
+    "format": "prettier --write 'packages/**/*.ts'",
+    "typecheck": "tsc --noEmit",
+    "clean": "pnpm -r clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.2.0"
+  },
+  "keywords": [
+    "erp",
+    "event-sourcing",
+    "cqrs",
+    "ai-agents",
+    "enterprise",
+    "accounting",
+    "open-source"
+  ],
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/[org]/nova.git"
+  }
+}
