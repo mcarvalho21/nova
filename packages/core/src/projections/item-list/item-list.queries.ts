@@ -1,7 +1,7 @@
 export const ITEM_LIST_QUERIES = {
   UPSERT: `
-    INSERT INTO item_list (item_id, name, sku, attributes, created_by_event_id, version)
-    VALUES ($1, $2, $3, $4, $5, 1)
+    INSERT INTO item_list (item_id, name, sku, attributes, created_by_event_id, version, legal_entity)
+    VALUES ($1, $2, $3, $4, $5, 1, $6)
     ON CONFLICT (item_id) DO UPDATE SET
       name = EXCLUDED.name,
       sku = EXCLUDED.sku,

@@ -1,7 +1,7 @@
 export const VENDOR_LIST_QUERIES = {
   UPSERT: `
-    INSERT INTO vendor_list (vendor_id, name, attributes, created_by_event_id, version)
-    VALUES ($1, $2, $3, $4, 1)
+    INSERT INTO vendor_list (vendor_id, name, attributes, created_by_event_id, version, legal_entity)
+    VALUES ($1, $2, $3, $4, 1, $5)
     ON CONFLICT (vendor_id) DO UPDATE SET
       name = EXCLUDED.name,
       attributes = EXCLUDED.attributes,

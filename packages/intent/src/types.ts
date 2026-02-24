@@ -1,4 +1,4 @@
-import type { EventActor, BaseEvent } from '@nova/core';
+import type { EventActor, BaseEvent, RuleEvaluationSummary } from '@nova/core';
 
 export interface Intent {
   intent_type: string;
@@ -7,8 +7,10 @@ export interface Intent {
   idempotency_key?: string;
   correlation_id?: string;
   occurred_at?: Date;
-  effective_date?: Date;
+  effective_date?: string;
   expected_entity_version?: number;
+  capabilities?: string[];
+  legal_entity?: string;
 }
 
 export interface IntentResult {
@@ -17,7 +19,9 @@ export interface IntentResult {
   event_id?: string;
   event?: BaseEvent;
   error?: string;
-  traces?: BaseEvent['rules_evaluated'];
+  traces?: RuleEvaluationSummary[];
+  status?: 'pending_approval';
+  required_approver_role?: string;
 }
 
 export interface IntentHandler {

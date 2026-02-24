@@ -8,7 +8,7 @@ import {
   VENDOR_CREATE_RULES,
   ValidationError,
 } from '@nova/core';
-import type { RuleContext } from '@nova/core';
+import type { RuleContext, EvaluationResult } from '@nova/core';
 import type { Intent, IntentResult, IntentHandler } from '../types.js';
 
 export class VendorCreateHandler implements IntentHandler {
@@ -21,8 +21,13 @@ export class VendorCreateHandler implements IntentHandler {
     private readonly projectionEngine: ProjectionEngine,
   ) {}
 
+  evaluateRules(_intent: Intent, ruleContext: RuleContext): EvaluationResult {
+    return evaluate(VENDOR_CREATE_RULES, ruleContext);
+  }
+
   async execute(intent: Intent, intentId: string): Promise<IntentResult> {
     const client = await this.pool.connect();
+    const legalEntity = intent.legal_entity ?? 'default';
 
     try {
       await client.query('BEGIN');
@@ -48,9 +53,9 @@ export class VendorCreateHandler implements IntentHandler {
       const name = (intent.data.name as string | undefined)?.trim() ?? '';
       const nameMissing = name === '';
 
-      // Check for duplicate vendor name (only if name is provided)
+      // Check for duplicate vendor name (scoped to legal entity)
       const existingVendor = !nameMissing
-        ? await this.entityGraph.getEntityByTypeAndAttribute('vendor', 'name', name, client)
+        ? await this.entityGraph.getEntityByTypeAndAttribute('vendor', 'name', name, client, legalEntity)
         : null;
 
       // Build rule context with computed flags
@@ -64,7 +69,7 @@ export class VendorCreateHandler implements IntentHandler {
         },
       };
 
-      const ruleResult = evaluate(VENDOR_CREATE_RULES, ruleContext);
+      const ruleResult = this.evaluateRules(intent, ruleContext);
 
       if (ruleResult.decision === 'reject') {
         await client.query('ROLLBACK');
@@ -82,6 +87,24 @@ export class VendorCreateHandler implements IntentHandler {
         };
       }
 
+      // Handle route_for_approval
+      if (ruleResult.decision === 'route_for_approval') {
+        await client.query('ROLLBACK');
+        return {
+          success: false,
+          intent_id: intentId,
+          status: 'pending_approval',
+          required_approver_role: ruleResult.required_approver_role,
+          traces: ruleResult.traces.map((t) => ({
+            rule_id: t.rule_id,
+            rule_name: t.rule_name,
+            result: t.result,
+            actions_taken: t.actions_taken,
+            evaluation_ms: t.evaluation_ms,
+          })),
+        };
+      }
+
       // Create entity
       const vendorId = generateId();
       await this.entityGraph.createEntity(
@@ -89,6 +112,7 @@ export class VendorCreateHandler implements IntentHandler {
         vendorId,
         { name, ...intent.data },
         client,
+        legalEntity,
       );
 
       // Append event
@@ -101,6 +125,7 @@ export class VendorCreateHandler implements IntentHandler {
           intent_id: intentId,
           occurred_at: intent.occurred_at,
           effective_date: intent.effective_date,
+          scope: { tenant_id: 'default', legal_entity: legalEntity },
           data: { name, ...intent.data },
           entities: [{ entity_type: 'vendor', entity_id: vendorId, role: 'subject' }],
           rules_evaluated: ruleResult.traces.map((t) => ({

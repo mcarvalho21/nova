@@ -18,9 +18,11 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
+    "@fastify/jwt": "^8.0.1",
     "@nova/core": "workspace:*",
     "@nova/intent": "workspace:*",
-    "fastify": "^4.25.0"
+    "fastify": "^4.25.0",
+    "fastify-plugin": "^5.1.0"
   },
   "devDependencies": {
     "tsx": "^4.7.0"

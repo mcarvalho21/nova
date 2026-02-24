@@ -1,6 +1,11 @@
 import pg from 'pg';
 import { generateId } from '../shared/types.js';
 import { EventStoreError, ConcurrencyConflictError } from '../shared/errors.js';
+import type { EventTypeRegistryService } from './event-type-registry.js';
+
+// Override pg type parser for DATE (OID 1082) to return raw YYYY-MM-DD string
+// instead of creating a JavaScript Date object (which introduces timezone shifts)
+pg.types.setTypeParser(1082, (val: string) => val);
 import type {
   AppendEventInput,
   BaseEvent,
@@ -17,7 +22,7 @@ function rowToEvent(row: Record<string, unknown>): BaseEvent {
     schema_version: row.schema_version as number,
     occurred_at: row.occurred_at as Date,
     recorded_at: row.recorded_at as Date,
-    effective_date: row.effective_date as Date,
+    effective_date: row.effective_date as string,
     scope: {
       tenant_id: row.tenant_id as string,
       legal_entity: row.legal_entity as string,
@@ -47,7 +52,16 @@ function rowToEvent(row: Record<string, unknown>): BaseEvent {
 export { rowToEvent };
 
 export class EventStoreService {
+  private registry?: EventTypeRegistryService;
+
   constructor(private readonly pool: pg.Pool) {}
+
+  /**
+   * Set the event type registry for schema validation on append.
+   */
+  setRegistry(registry: EventTypeRegistryService): void {
+    this.registry = registry;
+  }
 
   async append(
     input: AppendEventInput,
@@ -57,6 +71,15 @@ export class EventStoreService {
     const conn = client ?? (await this.pool.connect());
 
     try {
+      // Validate against registered schema if registry is set
+      if (this.registry) {
+        await this.registry.validate(
+          input.type,
+          input.schema_version ?? 1,
+          input.data,
+        );
+      }
+
       // Check idempotency first
       if (input.idempotency_key) {
         const { rows } = await conn.query(QUERIES.GET_BY_IDEMPOTENCY_KEY, [
@@ -98,7 +121,7 @@ export class EventStoreService {
         input.type,
         input.schema_version ?? 1,
         input.occurred_at ?? now,
-        input.effective_date ?? now,
+        input.effective_date ?? now.toISOString().slice(0, 10),
         scope.tenant_id,
         scope.legal_entity,
         input.actor.type,
@@ -176,6 +199,35 @@ export class EventStoreService {
   async getByIntentId(intentId: string): Promise<BaseEvent[]> {
     const { rows } = await this.pool.query(QUERIES.GET_BY_INTENT_ID, [intentId]);
     return rows.map(rowToEvent);
+  }
+
+  /**
+   * Read events filtered by legal entity (partition).
+   */
+  async readByPartition(
+    legalEntity: string,
+    params: ReadStreamParams = {},
+  ): Promise<EventPage> {
+    const afterSequence = params.after_sequence ?? 0n;
+    const limit = params.limit ?? 100;
+
+    let query: string;
+    let queryParams: (string | number | string[])[];
+
+    if (params.event_types && params.event_types.length > 0) {
+      query = `SELECT * FROM events WHERE sequence > $1 AND legal_entity = $2 AND type = ANY($4) ORDER BY sequence LIMIT $3`;
+      queryParams = [afterSequence.toString(), legalEntity, limit + 1, params.event_types];
+    } else {
+      query = `SELECT * FROM events WHERE sequence > $1 AND legal_entity = $2 ORDER BY sequence LIMIT $3`;
+      queryParams = [afterSequence.toString(), legalEntity, limit + 1];
+    }
+
+    const { rows } = await this.pool.query(query, queryParams);
+    const hasMore = rows.length > limit;
+    const events = rows.slice(0, limit).map(rowToEvent);
+    const nextSequence = hasMore ? events[events.length - 1].sequence + 1n : undefined;
+
+    return { events, has_more: hasMore, next_sequence: nextSequence };
   }
 
   async setupNotificationListener(

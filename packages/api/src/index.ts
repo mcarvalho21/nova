@@ -6,10 +6,21 @@ import {
   EventStoreService,
   EntityGraphService,
   ProjectionEngine,
+  SubscriptionService,
+  SnapshotService,
+  EventTypeRegistryService,
+  registerProjectionTable,
   vendorListHandler,
   itemListHandler,
 } from '@nova/core';
-import { IntentPipeline, VendorCreateHandler, VendorUpdateHandler, ItemCreateHandler } from '@nova/intent';
+import {
+  IntentPipeline,
+  VendorCreateHandler,
+  VendorUpdateHandler,
+  ItemCreateHandler,
+  VendorAddContactHandler,
+  IntentStoreService,
+} from '@nova/intent';
 import { createServer } from './server.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -32,6 +43,14 @@ async function main() {
   const eventStore = new EventStoreService(pool);
   const entityGraph = new EntityGraphService(pool);
   const projectionEngine = new ProjectionEngine(pool, eventStore);
+  const subscriptionService = new SubscriptionService(pool);
+  const snapshotService = new SnapshotService(pool);
+  const eventTypeRegistry = new EventTypeRegistryService(pool);
+  const intentStore = new IntentStoreService(pool);
+
+  // Register projection table configs for snapshot operations
+  registerProjectionTable('vendor_list', { tableName: 'vendor_list', primaryKey: 'vendor_id' });
+  registerProjectionTable('item_list', { tableName: 'item_list', primaryKey: 'item_id' });
 
   // Register projection handlers
   projectionEngine.registerHandler(vendorListHandler);
@@ -39,6 +58,7 @@ async function main() {
 
   // Wire intent pipeline
   const intentPipeline = new IntentPipeline();
+  intentPipeline.setIntentStore(intentStore);
   intentPipeline.registerHandler(
     new VendorCreateHandler(pool, eventStore, entityGraph, projectionEngine),
   );
@@ -48,9 +68,23 @@ async function main() {
   intentPipeline.registerHandler(
     new ItemCreateHandler(pool, eventStore, entityGraph, projectionEngine),
   );
+  intentPipeline.registerHandler(
+    new VendorAddContactHandler(pool, eventStore, entityGraph, projectionEngine),
+  );
 
   // Create and start server
-  const server = createServer({ pool, intentPipeline, eventStore });
+  const jwtSecret = process.env.JWT_SECRET;
+  const server = createServer({
+    pool,
+    intentPipeline,
+    eventStore,
+    intentStore,
+    projectionEngine,
+    subscriptionService,
+    snapshotService,
+    eventTypeRegistry,
+    jwtSecret,
+  });
   const port = Number(process.env.PORT ?? 3000);
 
   await server.listen({ port, host: '0.0.0.0' });

@@ -217,7 +217,7 @@ describe('Week 2: Integration Hardening', () => {
   describe('Timestamp semantics', () => {
     it('should accept client-provided occurred_at and effective_date', async () => {
       const clientOccurredAt = '2025-06-15T10:00:00.000Z';
-      const clientEffectiveDate = '2025-07-01T00:00:00.000Z';
+      const clientEffectiveDate = '2025-07-01';
 
       const response = await app.inject({
         method: 'POST',
@@ -247,8 +247,8 @@ describe('Week 2: Integration Hardening', () => {
       // occurred_at should be the client-provided value
       expect(new Date(event.occurred_at).toISOString()).toBe(clientOccurredAt);
 
-      // effective_date should be the client-provided value
-      expect(new Date(event.effective_date).toISOString()).toBe(clientEffectiveDate);
+      // effective_date should be the client-provided value as a DATE (YYYY-MM-DD)
+      expect(event.effective_date).toBe('2025-07-01');
 
       // recorded_at should be server-generated (recent, not equal to occurred_at)
       const recordedAt = new Date(event.recorded_at);
@@ -287,12 +287,16 @@ describe('Week 2: Integration Hardening', () => {
 
       const event = auditResponse.json();
 
-      // All three timestamps should be close to "now"
-      for (const field of ['occurred_at', 'recorded_at', 'effective_date']) {
+      // occurred_at and recorded_at should be close to "now"
+      for (const field of ['occurred_at', 'recorded_at']) {
         const ts = new Date(event[field]);
         expect(ts.getTime()).toBeGreaterThanOrEqual(before.getTime() - 1000);
         expect(ts.getTime()).toBeLessThanOrEqual(after.getTime() + 1000);
       }
+
+      // effective_date is a DATE (YYYY-MM-DD), should be today
+      const today = new Date().toISOString().slice(0, 10);
+      expect(event.effective_date).toBe(today);
     });
   });
 

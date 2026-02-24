@@ -23,6 +23,7 @@ export class ItemCreateHandler implements IntentHandler {
 
   async execute(intent: Intent, intentId: string): Promise<IntentResult> {
     const client = await this.pool.connect();
+    const legalEntity = intent.legal_entity ?? 'default';
 
     try {
       await client.query('BEGIN');
@@ -49,11 +50,11 @@ export class ItemCreateHandler implements IntentHandler {
       const sku = (intent.data.sku as string | undefined)?.trim();
       const nameMissing = name === '';
 
-      // Check for duplicate SKU (only if SKU is provided)
+      // Check for duplicate SKU (only if SKU is provided, scoped to legal entity)
       let skuDuplicateExists = false;
       if (sku) {
         const existing = await this.entityGraph.getEntityByTypeAndAttribute(
-          'item', 'sku', sku, client,
+          'item', 'sku', sku, client, legalEntity,
         );
         skuDuplicateExists = existing !== null;
       }
@@ -93,6 +94,7 @@ export class ItemCreateHandler implements IntentHandler {
         itemId,
         { name, sku, ...intent.data },
         client,
+        legalEntity,
       );
 
       // Append event
@@ -105,6 +107,7 @@ export class ItemCreateHandler implements IntentHandler {
           intent_id: intentId,
           occurred_at: intent.occurred_at,
           effective_date: intent.effective_date,
+          scope: { tenant_id: 'default', legal_entity: legalEntity },
           data: { name, sku, ...intent.data },
           entities: [{ entity_type: 'item', entity_id: itemId, role: 'subject' }],
           rules_evaluated: ruleResult.traces.map((t) => ({
