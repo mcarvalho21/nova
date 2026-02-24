@@ -9,7 +9,7 @@ export const QUERIES = {
       data, dimensions, entity_refs,
       rules_evaluated, tags,
       source_system, source_channel, source_ref,
-      idempotency_key
+      idempotency_key, expected_entity_version
     ) VALUES (
       $1, $2, $3,
       $4, $5,
@@ -19,7 +19,7 @@ export const QUERIES = {
       $14, $15, $16,
       $17, $18,
       $19, $20, $21,
-      $22
+      $22, $23
     )
     RETURNING *
   `,
@@ -49,5 +49,9 @@ export const QUERIES = {
       AND type = ANY($3)
     ORDER BY sequence
     LIMIT $2
+  `,
+  CHECK_ENTITY_VERSION: `
+    SELECT version FROM entities
+    WHERE entity_type = $1 AND entity_id = $2
   `,
 } as const;

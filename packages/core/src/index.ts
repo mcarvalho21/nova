@@ -30,7 +30,7 @@ export { EntityGraphService } from './entity-graph/index.js';
 export type { Entity, EntityRelationship } from './entity-graph/index.js';
 
 // Rules Engine
-export { evaluate, evaluateCondition, VENDOR_CREATE_RULES } from './rules-engine/index.js';
+export { evaluate, evaluateCondition, VENDOR_CREATE_RULES, ITEM_CREATE_RULES } from './rules-engine/index.js';
 export type {
   Rule,
   Condition,
@@ -47,3 +47,5 @@ export type { ProjectionHandler, ProjectionSubscription } from './projection-eng
 // Projections
 export { vendorListHandler } from './projections/vendor-list/vendor-list.handler.js';
 export { VENDOR_LIST_QUERIES } from './projections/vendor-list/vendor-list.queries.js';
+export { itemListHandler } from './projections/item-list/item-list.handler.js';
+export { ITEM_LIST_QUERIES } from './projections/item-list/item-list.queries.js';

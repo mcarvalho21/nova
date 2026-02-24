@@ -6,6 +6,9 @@ export interface Intent {
   data: Record<string, unknown>;
   idempotency_key?: string;
   correlation_id?: string;
+  occurred_at?: Date;
+  effective_date?: Date;
+  expected_entity_version?: number;
 }
 
 export interface IntentResult {

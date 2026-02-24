@@ -68,6 +68,7 @@ export interface AppendEventInput {
   tags?: string[];
   source?: EventSource;
   idempotency_key?: string;
+  expected_entity_version?: number;
 }
 
 export interface EventPage {
