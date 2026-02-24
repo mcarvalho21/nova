@@ -25,4 +25,16 @@ export const VENDOR_CREATE_RULES: Rule[] = [
     action: 'reject',
     rejection_message: 'A vendor with this name already exists',
   },
+  {
+    id: 'vendor-high-value-approval',
+    name: 'High-value vendor requires approval',
+    description: 'Routes vendor creation for approval if credit_limit exceeds 100,000',
+    priority: 10,
+    intent_type: 'mdm.vendor.create',
+    conditions: [
+      { field: 'credit_limit', operator: 'gt', value: 100000 },
+    ],
+    action: 'route_for_approval',
+    approver_role: 'mdm_manager',
+  },
 ];

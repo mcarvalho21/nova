@@ -43,6 +43,23 @@ export class IdempotencyConflictError extends Error {
   }
 }
 
+export class AuthenticationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AuthenticationError';
+  }
+}
+
+export class AuthorizationError extends Error {
+  constructor(
+    message: string,
+    public readonly requiredCapabilities?: string[],
+  ) {
+    super(message);
+    this.name = 'AuthorizationError';
+  }
+}
+
 export class EntityNotFoundError extends Error {
   constructor(
     public readonly entityType: string,

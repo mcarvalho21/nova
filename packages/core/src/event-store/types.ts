@@ -18,7 +18,7 @@ export interface EntityReference {
 export interface RuleEvaluationSummary {
   rule_id: string;
   rule_name: string;
-  result: 'fired' | 'not_applicable' | 'condition_false';
+  result: 'fired' | 'not_applicable' | 'condition_false' | 'skipped_inactive';
   actions_taken?: string[];
   evaluation_ms: number;
 }
@@ -36,7 +36,7 @@ export interface BaseEvent {
   schema_version: number;
   occurred_at: Date;
   recorded_at: Date;
-  effective_date: Date;
+  effective_date: string;
   scope: EventScope;
   actor: EventActor;
   caused_by?: string;
@@ -55,7 +55,7 @@ export interface AppendEventInput {
   type: string;
   schema_version?: number;
   occurred_at?: Date;
-  effective_date?: Date;
+  effective_date?: string;
   scope?: EventScope;
   actor: EventActor;
   caused_by?: string;

@@ -3,6 +3,7 @@ export interface Entity {
   entity_type: string;
   attributes: Record<string, unknown>;
   version: number;
+  legal_entity: string;
   created_at: Date;
   updated_at: Date;
 }

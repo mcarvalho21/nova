@@ -21,6 +21,7 @@ export class VendorUpdateHandler implements IntentHandler {
 
   async execute(intent: Intent, intentId: string): Promise<IntentResult> {
     const client = await this.pool.connect();
+    const legalEntity = intent.legal_entity ?? 'default';
 
     try {
       await client.query('BEGIN');
@@ -60,6 +61,12 @@ export class VendorUpdateHandler implements IntentHandler {
         throw new EntityNotFoundError('vendor', vendorId);
       }
 
+      // Scope check: entity must belong to actor's legal entity
+      if (entity.legal_entity !== legalEntity) {
+        await client.query('ROLLBACK');
+        throw new EntityNotFoundError('vendor', vendorId);
+      }
+
       // OCC check at handler level
       const expectedVersion = intent.expected_entity_version;
       if (expectedVersion !== undefined && entity.version !== expectedVersion) {
@@ -84,6 +91,7 @@ export class VendorUpdateHandler implements IntentHandler {
           intent_id: intentId,
           occurred_at: intent.occurred_at,
           effective_date: intent.effective_date,
+          scope: { tenant_id: 'default', legal_entity: legalEntity },
           data: updatedAttributes,
           entities: [{ entity_type: 'vendor', entity_id: vendorId, role: 'subject' }],
           expected_entity_version: entity.version,
@@ -99,6 +107,7 @@ export class VendorUpdateHandler implements IntentHandler {
         updatedAttributes,
         entity.version,
         client,
+        legalEntity,
       );
 
       // Update projection synchronously

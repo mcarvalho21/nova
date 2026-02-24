@@ -1,0 +1,28 @@
+import type { Rule } from './types.js';
+
+export const VENDOR_CONTACT_RULES: Rule[] = [
+  {
+    id: 'contact-name-required',
+    name: 'Contact name is required',
+    description: 'Rejects vendor contact addition if the contact name is empty',
+    priority: 1,
+    intent_type: 'mdm.vendor.add_contact',
+    conditions: [
+      { field: '_contact_name_missing', operator: 'eq', value: true },
+    ],
+    action: 'reject',
+    rejection_message: 'Contact name is required',
+  },
+  {
+    id: 'contact-vendor-must-exist',
+    name: 'Vendor must exist',
+    description: 'Rejects contact addition if the vendor does not exist',
+    priority: 2,
+    intent_type: 'mdm.vendor.add_contact',
+    conditions: [
+      { field: '_vendor_not_found', operator: 'eq', value: true },
+    ],
+    action: 'reject',
+    rejection_message: 'Vendor not found',
+  },
+];
