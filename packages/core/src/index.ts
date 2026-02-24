@@ -73,3 +73,13 @@ export { vendorListHandler } from './projections/vendor-list/vendor-list.handler
 export { VENDOR_LIST_QUERIES } from './projections/vendor-list/vendor-list.queries.js';
 export { itemListHandler } from './projections/item-list/item-list.handler.js';
 export { ITEM_LIST_QUERIES } from './projections/item-list/item-list.queries.js';
+
+// AP Projections
+export { apInvoiceListHandler } from './projections/ap-invoice-list/ap-invoice-list.handler.js';
+export { AP_INVOICE_LIST_QUERIES } from './projections/ap-invoice-list/ap-invoice-list.queries.js';
+export { apAgingHandler, calculateAgingBucket } from './projections/ap-aging/ap-aging.handler.js';
+export { AP_AGING_QUERIES } from './projections/ap-aging/ap-aging.queries.js';
+export { apVendorBalanceHandler } from './projections/ap-vendor-balance/ap-vendor-balance.handler.js';
+export { AP_VENDOR_BALANCE_QUERIES } from './projections/ap-vendor-balance/ap-vendor-balance.queries.js';
+export { glPostingsHandler } from './projections/gl-postings/gl-postings.handler.js';
+export { GL_POSTINGS_QUERIES } from './projections/gl-postings/gl-postings.queries.js';

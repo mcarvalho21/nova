@@ -1,0 +1,53 @@
+rules:
+  # ── Validate phase ──
+  - id: ap-duplicate-invoice-check
+    name: Duplicate invoice check
+    description: Rejects invoice submission if a duplicate vendor+invoice_number already exists
+    priority: 100
+    intent_type: ap.invoice.submit
+    phase: validate
+    conditions:
+      - field: _duplicate_exists
+        operator: eq
+        value: true
+    action: reject
+    rejection_message: "Duplicate invoice: an invoice with this number already exists for this vendor"
+
+  - id: ap-sod-enforcement
+    name: Segregation of duties enforcement
+    description: Rejects approval if the approver is the same person who submitted the invoice
+    priority: 50
+    intent_type: ap.invoice.approve
+    phase: validate
+    conditions:
+      - field: _submitter_is_approver
+        operator: eq
+        value: true
+    action: reject
+    rejection_message: "Segregation of duties violation: submitter cannot approve their own invoice"
+
+  # ── Decide phase (for matched invoices — approval routing) ──
+  - id: ap-approval-routing-high
+    name: High-value invoice requires AP manager approval
+    description: Routes invoices above $10,000 for AP manager approval
+    priority: 300
+    intent_type: ap.invoice.approve
+    phase: decide
+    conditions:
+      - field: amount
+        operator: gt
+        value: 10000
+    action: route_for_approval
+    approver_role: ap_manager
+
+  - id: ap-approval-routing-low
+    name: Low-value invoice auto-approved
+    description: Auto-approves invoices at or below $10,000
+    priority: 301
+    intent_type: ap.invoice.approve
+    phase: decide
+    conditions:
+      - field: amount
+        operator: lte
+        value: 10000
+    action: approve

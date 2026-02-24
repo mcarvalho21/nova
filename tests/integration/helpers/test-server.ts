@@ -10,6 +10,10 @@ import {
   registerProjectionTable,
   vendorListHandler,
   itemListHandler,
+  apInvoiceListHandler,
+  apAgingHandler,
+  apVendorBalanceHandler,
+  glPostingsHandler,
 } from '@nova/core';
 import {
   IntentPipeline,
@@ -17,6 +21,12 @@ import {
   VendorUpdateHandler,
   ItemCreateHandler,
   VendorAddContactHandler,
+  InvoiceSubmitHandler,
+  InvoiceApproveHandler,
+  InvoiceRejectHandler,
+  InvoicePostHandler,
+  InvoicePayHandler,
+  PurchaseOrderCreateHandler,
   IntentStoreService,
 } from '@nova/intent';
 import { createServer } from '../../../packages/api/src/server.js';
@@ -45,9 +55,17 @@ export function createTestServer(pool: pg.Pool, jwtSecret?: string): TestServer 
   // Register projection table configs for snapshot operations
   registerProjectionTable('vendor_list', { tableName: 'vendor_list', primaryKey: 'vendor_id' });
   registerProjectionTable('item_list', { tableName: 'item_list', primaryKey: 'item_id' });
+  registerProjectionTable('ap_invoice_list', { tableName: 'ap_invoice_list', primaryKey: 'invoice_id' });
+  registerProjectionTable('ap_aging', { tableName: 'ap_aging', primaryKey: 'id' });
+  registerProjectionTable('ap_vendor_balance', { tableName: 'ap_vendor_balance', primaryKey: 'vendor_id' });
+  registerProjectionTable('gl_postings', { tableName: 'gl_postings', primaryKey: 'posting_id' });
 
   projectionEngine.registerHandler(vendorListHandler);
   projectionEngine.registerHandler(itemListHandler);
+  projectionEngine.registerHandler(apInvoiceListHandler);
+  projectionEngine.registerHandler(apAgingHandler);
+  projectionEngine.registerHandler(apVendorBalanceHandler);
+  projectionEngine.registerHandler(glPostingsHandler);
 
   const intentPipeline = new IntentPipeline();
   intentPipeline.setIntentStore(intentStore);
@@ -62,6 +80,24 @@ export function createTestServer(pool: pg.Pool, jwtSecret?: string): TestServer 
   );
   intentPipeline.registerHandler(
     new VendorAddContactHandler(pool, eventStore, entityGraph, projectionEngine),
+  );
+  intentPipeline.registerHandler(
+    new InvoiceSubmitHandler(pool, eventStore, entityGraph, projectionEngine),
+  );
+  intentPipeline.registerHandler(
+    new InvoiceApproveHandler(pool, eventStore, entityGraph, projectionEngine),
+  );
+  intentPipeline.registerHandler(
+    new InvoiceRejectHandler(pool, eventStore, entityGraph, projectionEngine),
+  );
+  intentPipeline.registerHandler(
+    new InvoicePostHandler(pool, eventStore, entityGraph, projectionEngine),
+  );
+  intentPipeline.registerHandler(
+    new InvoicePayHandler(pool, eventStore, entityGraph, projectionEngine),
+  );
+  intentPipeline.registerHandler(
+    new PurchaseOrderCreateHandler(pool, eventStore, entityGraph, projectionEngine),
   );
 
   const app = createServer({
