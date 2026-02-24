@@ -7,8 +7,9 @@ import {
   EntityGraphService,
   ProjectionEngine,
   vendorListHandler,
+  itemListHandler,
 } from '@nova/core';
-import { IntentPipeline, VendorCreateHandler } from '@nova/intent';
+import { IntentPipeline, VendorCreateHandler, VendorUpdateHandler, ItemCreateHandler } from '@nova/intent';
 import { createServer } from './server.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -34,11 +35,18 @@ async function main() {
 
   // Register projection handlers
   projectionEngine.registerHandler(vendorListHandler);
+  projectionEngine.registerHandler(itemListHandler);
 
   // Wire intent pipeline
   const intentPipeline = new IntentPipeline();
   intentPipeline.registerHandler(
     new VendorCreateHandler(pool, eventStore, entityGraph, projectionEngine),
+  );
+  intentPipeline.registerHandler(
+    new VendorUpdateHandler(pool, eventStore, entityGraph, projectionEngine),
+  );
+  intentPipeline.registerHandler(
+    new ItemCreateHandler(pool, eventStore, entityGraph, projectionEngine),
   );
 
   // Create and start server

@@ -1,6 +1,6 @@
 import pg from 'pg';
 import { generateId } from '../shared/types.js';
-import { EventStoreError } from '../shared/errors.js';
+import { EventStoreError, ConcurrencyConflictError } from '../shared/errors.js';
 import type {
   AppendEventInput,
   BaseEvent,
@@ -72,6 +72,27 @@ export class EventStoreService {
       const scope = input.scope ?? { tenant_id: 'default', legal_entity: 'default' };
       const source = input.source ?? { system: 'nova', channel: 'api' };
 
+      // OCC: verify entity version before appending
+      if (input.expected_entity_version !== undefined && input.entities) {
+        const subject = input.entities.find((e) => e.role === 'subject');
+        if (subject) {
+          const { rows: entityRows } = await conn.query(
+            QUERIES.CHECK_ENTITY_VERSION,
+            [subject.entity_type, subject.entity_id],
+          );
+          if (entityRows.length > 0) {
+            const actualVersion = Number(entityRows[0].version);
+            if (actualVersion !== input.expected_entity_version) {
+              throw new ConcurrencyConflictError(
+                subject.entity_id,
+                input.expected_entity_version,
+                actualVersion,
+              );
+            }
+          }
+        }
+      }
+
       const { rows } = await conn.query(QUERIES.INSERT_EVENT, [
         id,
         input.type,
@@ -95,6 +116,7 @@ export class EventStoreService {
         source.channel,
         source.reference ?? null,
         input.idempotency_key ?? null,
+        input.expected_entity_version ?? null,
       ]);
 
       return rowToEvent(rows[0]);

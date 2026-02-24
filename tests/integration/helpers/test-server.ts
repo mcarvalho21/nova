@@ -5,8 +5,14 @@ import {
   EntityGraphService,
   ProjectionEngine,
   vendorListHandler,
+  itemListHandler,
 } from '@nova/core';
-import { IntentPipeline, VendorCreateHandler } from '@nova/intent';
+import {
+  IntentPipeline,
+  VendorCreateHandler,
+  VendorUpdateHandler,
+  ItemCreateHandler,
+} from '@nova/intent';
 import { createServer } from '../../../packages/api/src/server.js';
 
 export interface TestServer {
@@ -23,10 +29,17 @@ export function createTestServer(pool: pg.Pool): TestServer {
   const projectionEngine = new ProjectionEngine(pool, eventStore);
 
   projectionEngine.registerHandler(vendorListHandler);
+  projectionEngine.registerHandler(itemListHandler);
 
   const intentPipeline = new IntentPipeline();
   intentPipeline.registerHandler(
     new VendorCreateHandler(pool, eventStore, entityGraph, projectionEngine),
+  );
+  intentPipeline.registerHandler(
+    new VendorUpdateHandler(pool, eventStore, entityGraph, projectionEngine),
+  );
+  intentPipeline.registerHandler(
+    new ItemCreateHandler(pool, eventStore, entityGraph, projectionEngine),
   );
 
   const app = createServer({ pool, intentPipeline, eventStore });

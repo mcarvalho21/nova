@@ -5,14 +5,14 @@ import {
   EntityGraphService,
   ProjectionEngine,
   evaluate,
-  VENDOR_CREATE_RULES,
+  ITEM_CREATE_RULES,
   ValidationError,
 } from '@nova/core';
 import type { RuleContext } from '@nova/core';
 import type { Intent, IntentResult, IntentHandler } from '../types.js';
 
-export class VendorCreateHandler implements IntentHandler {
-  readonly intent_type = 'mdm.vendor.create';
+export class ItemCreateHandler implements IntentHandler {
+  readonly intent_type = 'mdm.item.create';
 
   constructor(
     private readonly pool: pg.Pool,
@@ -27,7 +27,7 @@ export class VendorCreateHandler implements IntentHandler {
     try {
       await client.query('BEGIN');
 
-      // Idempotency check: if this key was already processed, return the existing event
+      // Idempotency check
       if (intent.idempotency_key) {
         const { rows } = await client.query(
           'SELECT * FROM events WHERE idempotency_key = $1',
@@ -46,25 +46,29 @@ export class VendorCreateHandler implements IntentHandler {
       }
 
       const name = (intent.data.name as string | undefined)?.trim() ?? '';
+      const sku = (intent.data.sku as string | undefined)?.trim();
       const nameMissing = name === '';
 
-      // Check for duplicate vendor name (only if name is provided)
-      const existingVendor = !nameMissing
-        ? await this.entityGraph.getEntityByTypeAndAttribute('vendor', 'name', name, client)
-        : null;
+      // Check for duplicate SKU (only if SKU is provided)
+      let skuDuplicateExists = false;
+      if (sku) {
+        const existing = await this.entityGraph.getEntityByTypeAndAttribute(
+          'item', 'sku', sku, client,
+        );
+        skuDuplicateExists = existing !== null;
+      }
 
-      // Build rule context with computed flags
       const ruleContext: RuleContext = {
         intent_type: intent.intent_type,
         data: {
           ...intent.data,
           name,
           _name_missing: nameMissing,
-          _duplicate_exists: existingVendor !== null,
+          _sku_duplicate_exists: skuDuplicateExists,
         },
       };
 
-      const ruleResult = evaluate(VENDOR_CREATE_RULES, ruleContext);
+      const ruleResult = evaluate(ITEM_CREATE_RULES, ruleContext);
 
       if (ruleResult.decision === 'reject') {
         await client.query('ROLLBACK');
@@ -83,11 +87,11 @@ export class VendorCreateHandler implements IntentHandler {
       }
 
       // Create entity
-      const vendorId = generateId();
+      const itemId = generateId();
       await this.entityGraph.createEntity(
-        'vendor',
-        vendorId,
-        { name, ...intent.data },
+        'item',
+        itemId,
+        { name, sku, ...intent.data },
         client,
       );
 
@@ -95,14 +99,14 @@ export class VendorCreateHandler implements IntentHandler {
       const correlationId = intent.correlation_id ?? generateId();
       const event = await this.eventStore.append(
         {
-          type: 'mdm.vendor.created',
+          type: 'mdm.item.created',
           actor: intent.actor,
           correlation_id: correlationId,
           intent_id: intentId,
           occurred_at: intent.occurred_at,
           effective_date: intent.effective_date,
-          data: { name, ...intent.data },
-          entities: [{ entity_type: 'vendor', entity_id: vendorId, role: 'subject' }],
+          data: { name, sku, ...intent.data },
+          entities: [{ entity_type: 'item', entity_id: itemId, role: 'subject' }],
           rules_evaluated: ruleResult.traces.map((t) => ({
             rule_id: t.rule_id,
             rule_name: t.rule_name,

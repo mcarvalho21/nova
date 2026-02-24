@@ -4,15 +4,13 @@ import {
   EventStoreService,
   EntityGraphService,
   ProjectionEngine,
-  evaluate,
-  VENDOR_CREATE_RULES,
-  ValidationError,
+  ConcurrencyConflictError,
+  EntityNotFoundError,
 } from '@nova/core';
-import type { RuleContext } from '@nova/core';
 import type { Intent, IntentResult, IntentHandler } from '../types.js';
 
-export class VendorCreateHandler implements IntentHandler {
-  readonly intent_type = 'mdm.vendor.create';
+export class VendorUpdateHandler implements IntentHandler {
+  readonly intent_type = 'mdm.vendor.update';
 
   constructor(
     private readonly pool: pg.Pool,
@@ -27,7 +25,7 @@ export class VendorCreateHandler implements IntentHandler {
     try {
       await client.query('BEGIN');
 
-      // Idempotency check: if this key was already processed, return the existing event
+      // Idempotency check
       if (intent.idempotency_key) {
         const { rows } = await client.query(
           'SELECT * FROM events WHERE idempotency_key = $1',
@@ -45,73 +43,61 @@ export class VendorCreateHandler implements IntentHandler {
         }
       }
 
-      const name = (intent.data.name as string | undefined)?.trim() ?? '';
-      const nameMissing = name === '';
-
-      // Check for duplicate vendor name (only if name is provided)
-      const existingVendor = !nameMissing
-        ? await this.entityGraph.getEntityByTypeAndAttribute('vendor', 'name', name, client)
-        : null;
-
-      // Build rule context with computed flags
-      const ruleContext: RuleContext = {
-        intent_type: intent.intent_type,
-        data: {
-          ...intent.data,
-          name,
-          _name_missing: nameMissing,
-          _duplicate_exists: existingVendor !== null,
-        },
-      };
-
-      const ruleResult = evaluate(VENDOR_CREATE_RULES, ruleContext);
-
-      if (ruleResult.decision === 'reject') {
+      const vendorId = intent.data.vendor_id as string;
+      if (!vendorId) {
         await client.query('ROLLBACK');
         return {
           success: false,
           intent_id: intentId,
-          error: ruleResult.rejection_message ?? 'Intent rejected by rules',
-          traces: ruleResult.traces.map((t) => ({
-            rule_id: t.rule_id,
-            rule_name: t.rule_name,
-            result: t.result,
-            actions_taken: t.actions_taken,
-            evaluation_ms: t.evaluation_ms,
-          })),
+          error: 'vendor_id is required for vendor update',
         };
       }
 
-      // Create entity
-      const vendorId = generateId();
-      await this.entityGraph.createEntity(
-        'vendor',
-        vendorId,
-        { name, ...intent.data },
-        client,
-      );
+      // Get current entity
+      const entity = await this.entityGraph.getEntity('vendor', vendorId, client);
+      if (!entity) {
+        await client.query('ROLLBACK');
+        throw new EntityNotFoundError('vendor', vendorId);
+      }
 
-      // Append event
+      // OCC check at handler level
+      const expectedVersion = intent.expected_entity_version;
+      if (expectedVersion !== undefined && entity.version !== expectedVersion) {
+        await client.query('ROLLBACK');
+        throw new ConcurrencyConflictError(vendorId, expectedVersion, entity.version);
+      }
+
+      // Merge attributes
+      const updatedAttributes = {
+        ...entity.attributes,
+        ...intent.data,
+      };
+      delete updatedAttributes.vendor_id;
+
+      // Append event FIRST (event store OCC check verifies entity is still at expected version)
       const correlationId = intent.correlation_id ?? generateId();
       const event = await this.eventStore.append(
         {
-          type: 'mdm.vendor.created',
+          type: 'mdm.vendor.updated',
           actor: intent.actor,
           correlation_id: correlationId,
           intent_id: intentId,
           occurred_at: intent.occurred_at,
           effective_date: intent.effective_date,
-          data: { name, ...intent.data },
+          data: updatedAttributes,
           entities: [{ entity_type: 'vendor', entity_id: vendorId, role: 'subject' }],
-          rules_evaluated: ruleResult.traces.map((t) => ({
-            rule_id: t.rule_id,
-            rule_name: t.rule_name,
-            result: t.result,
-            actions_taken: t.actions_taken,
-            evaluation_ms: t.evaluation_ms,
-          })),
+          expected_entity_version: entity.version,
           idempotency_key: intent.idempotency_key,
         },
+        client,
+      );
+
+      // Update entity AFTER event (entity state is derived from events)
+      await this.entityGraph.updateEntity(
+        'vendor',
+        vendorId,
+        updatedAttributes,
+        entity.version,
         client,
       );
 
@@ -128,15 +114,6 @@ export class VendorCreateHandler implements IntentHandler {
       };
     } catch (error) {
       await client.query('ROLLBACK');
-
-      if (error instanceof ValidationError) {
-        return {
-          success: false,
-          intent_id: intentId,
-          error: error.message,
-        };
-      }
-
       throw error;
     } finally {
       client.release();

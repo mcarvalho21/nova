@@ -4,7 +4,7 @@ import type { ProjectionHandler } from '../../projection-engine/types.js';
 import { VENDOR_LIST_QUERIES } from './vendor-list.queries.js';
 
 export const vendorListHandler: ProjectionHandler = {
-  event_types: ['mdm.vendor.created'],
+  event_types: ['mdm.vendor.created', 'mdm.vendor.updated'],
 
   async handle(event: BaseEvent, client: pg.PoolClient): Promise<void> {
     const vendorRef = event.entities.find(

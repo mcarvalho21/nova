@@ -1,6 +1,6 @@
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
-import { generateId, ValidationError } from '@nova/core';
+import { generateId, ValidationError, ConcurrencyConflictError, EntityNotFoundError } from '@nova/core';
 import type { IntentPipeline } from '@nova/intent';
 import { registerIntentRoutes } from './routes/intents.route.js';
 import { registerProjectionRoutes } from './routes/projections.route.js';
@@ -38,6 +38,25 @@ export function createServer(deps: ServerDeps): FastifyInstance {
         error: 'Validation Error',
         message: error.message,
         field: error.field,
+      });
+    }
+
+    if (error instanceof ConcurrencyConflictError) {
+      return reply.status(409).send({
+        error: 'Concurrency Conflict',
+        message: error.message,
+        entity_id: error.entityId,
+        expected_version: error.expectedVersion,
+        actual_version: error.actualVersion,
+      });
+    }
+
+    if (error instanceof EntityNotFoundError) {
+      return reply.status(404).send({
+        error: 'Not Found',
+        message: error.message,
+        entity_type: error.entityType,
+        entity_id: error.entityId,
       });
     }
 

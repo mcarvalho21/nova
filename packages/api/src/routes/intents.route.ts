@@ -11,6 +11,9 @@ interface CreateIntentBody {
   data: Record<string, unknown>;
   idempotency_key?: string;
   correlation_id?: string;
+  occurred_at?: string;
+  effective_date?: string;
+  expected_entity_version?: number;
 }
 
 export function registerIntentRoutes(
@@ -47,6 +50,9 @@ export function registerIntentRoutes(
       data: body.data,
       idempotency_key: body.idempotency_key,
       correlation_id: body.correlation_id,
+      occurred_at: body.occurred_at ? new Date(body.occurred_at) : undefined,
+      effective_date: body.effective_date ? new Date(body.effective_date) : undefined,
+      expected_entity_version: body.expected_entity_version,
     };
 
     const result = await pipeline.execute(intent);
