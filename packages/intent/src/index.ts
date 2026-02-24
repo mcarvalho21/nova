@@ -3,6 +3,12 @@ export { VendorCreateHandler } from './intent-handlers/vendor-create.handler.js'
 export { VendorUpdateHandler } from './intent-handlers/vendor-update.handler.js';
 export { ItemCreateHandler } from './intent-handlers/item-create.handler.js';
 export { VendorAddContactHandler } from './intent-handlers/vendor-add-contact.handler.js';
+export { InvoiceSubmitHandler } from './intent-handlers/invoice-submit.handler.js';
+export { InvoiceApproveHandler } from './intent-handlers/invoice-approve.handler.js';
+export { InvoiceRejectHandler } from './intent-handlers/invoice-reject.handler.js';
+export { InvoicePostHandler } from './intent-handlers/invoice-post.handler.js';
+export { InvoicePayHandler } from './intent-handlers/invoice-pay.handler.js';
+export { PurchaseOrderCreateHandler } from './intent-handlers/purchase-order-create.handler.js';
 export { IntentStoreService } from './intent-store.service.js';
 export { checkCapabilities } from './capabilities.js';
 export type { Intent, IntentResult, IntentHandler } from './types.js';
