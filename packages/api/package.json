@@ -1,0 +1,28 @@
+{
+  "name": "@nova/api",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx --watch src/index.ts",
+    "test": "vitest run --passWithNoTests",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@nova/core": "workspace:*",
+    "@nova/intent": "workspace:*",
+    "fastify": "^4.25.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0"
+  }
+}

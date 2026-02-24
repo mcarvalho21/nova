@@ -28,10 +28,7 @@
   "references": [
     { "path": "packages/core" },
     { "path": "packages/intent" },
-    { "path": "packages/governance" },
-    { "path": "packages/capabilities" },
-    { "path": "packages/api" },
-    { "path": "packages/agents" }
+    { "path": "packages/api" }
   ],
   "exclude": ["node_modules", "dist", "coverage"]
 }

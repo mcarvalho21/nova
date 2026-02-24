@@ -1,0 +1,28 @@
+{
+  "name": "@nova/core",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "default": "./dist/index.js",
+        "types": "./dist/index.d.ts"
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "pg": "^8.11.0",
+    "ulid": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.0"
+  }
+}
