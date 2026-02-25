@@ -13,6 +13,7 @@
     "test": "pnpm -r test",
     "test:int": "vitest run --config vitest.integration.config.ts",
     "test:load": "pnpm -r test:load",
+    "test:stress": "vitest run --config vitest.stress.config.ts",
     "dev": "pnpm --filter @nova/api dev",
     "lint": "eslint packages/ --ext .ts",
     "format": "prettier --write 'packages/**/*.ts'",
