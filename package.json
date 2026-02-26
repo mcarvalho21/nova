@@ -16,6 +16,7 @@
     "test:stress": "vitest run --config vitest.stress.config.ts",
     "demo": "tsx scripts/demo.ts",
     "demo:setup": "tsx scripts/demo-setup.ts",
+    "seed": "tsx scripts/seed.ts",
     "dev": "pnpm --filter @nova/api dev",
     "lint": "eslint packages/ --ext .ts",
     "format": "prettier --write 'packages/**/*.ts'",
