@@ -6,6 +6,43 @@ Nova rethinks enterprise software for the age of autonomous systems. Instead of 
 
 ---
 
+## See It In Action
+
+Nova ships with a developer dashboard, demo walkthrough, and seed data so you can explore a working procure-to-pay cycle immediately.
+
+```bash
+git clone https://github.com/mcarvalho21/nova.git
+cd nova
+pnpm install
+pnpm demo:setup    # Start server + migrate database
+pnpm seed          # Populate with 15 vendors, 30 POs, 40 invoices across 2 legal entities
+pnpm dashboard     # Open developer console at localhost:5173
+```
+
+### Developer Console
+
+**AP Invoice Lifecycle** — 40 invoices across every lifecycle state, from submitted to paid:
+
+![Nova Dashboard — AP Invoices](docs/images/dashboard-invoices.png)
+
+**AP Aging Analysis** — Outstanding payables aged by bucket with color-coded visualization:
+
+![Nova Dashboard — AP Aging](docs/images/dashboard-aging.png)
+
+**GL Postings** — Double-entry journal entries generated automatically from AP events:
+
+![Nova Dashboard — GL Postings](docs/images/dashboard-gl.png)
+
+**Vendor Balances** — Outstanding balances per vendor across legal entities:
+
+![Nova Dashboard — Vendor Balances](docs/images/dashboard-vendors.png)
+
+### CLI Demo
+
+Run `pnpm demo` to watch a narrated walkthrough of the full AP invoice lifecycle — vendor creation, purchase order, invoice submission, 3-way matching, approval routing with segregation of duties, GL posting, and payment — all through the intent protocol with real-time output.
+
+---
+
 ## Why Nova?
 
 Traditional ERPs were designed for humans entering data into forms. They store mutable rows in relational tables, bolt on audit trails as an afterthought, and treat AI as an external integration. This creates fundamental problems:
@@ -59,11 +96,28 @@ Nova's core is five engine components that work together:
 
 **Entity Graph** — Flexible-schema entities with typed relationships. Vendors, invoices, items, employees — any business object, with attributes that can vary by configuration.
 
-**Rules Engine** — Declarative business rules with four evaluation phases (validate → enrich → decide → post-commit). Rules are versioned, effective-dated, and produce audit traces showing exactly which conditions were checked and what actions were taken.
+**Rules Engine** — Declarative business rules with phased evaluation (validate → enrich → decide → post-commit). Rules are versioned, effective-dated, loaded from YAML configuration, and produce audit traces showing exactly which conditions were checked and what actions were taken.
 
-**Projection Engine** — Materialized views built from events. Trial balance, AP aging, inventory on hand — each projection is optimized for its query pattern. Projections are rebuildable from events at any time. Supports eventual, strong, and verified consistency levels.
+**Projection Engine** — Materialized views built from events. Trial balance, AP aging, inventory on hand — each projection is optimized for its query pattern. Projections are rebuildable from events at any time. Supports snapshot creation, restoration, and invalidation on back-dated events.
 
 **Intent Protocol** — The universal interaction pattern. Every state change flows through: receive → authenticate → authorize → validate → plan → approve → execute. Humans, APIs, system events, and AI agents all use the same pipeline with the same security, audit, and governance.
+
+---
+
+## Benchmarks
+
+Phase 0 stress tests validated on PostgreSQL 16 with automated gate criteria:
+
+| Metric | Result | Target |
+|--------|--------|--------|
+| Event throughput | **5,494 events/sec** per partition | 2,000 |
+| Projection lag (p99) | **3.07 ms** | < 1,000 ms |
+| Concurrent intents | **33/50 succeed**, zero lost updates | 50 concurrent |
+| Idempotency | **10,000/10,000** duplicates detected | Zero double-postings |
+| GL reconciliation | **$0.00 variance** across 500 lifecycles | Zero variance |
+| Projection rebuild | **1,744 events/sec** (1M in ~9.5 min) | 1M in < 10 min |
+
+Full gate report: PASS-TARGET achieved across all criteria. See [`docs/reference/NFR.md`](docs/reference/NFR.md) for tiered pass definitions.
 
 ---
 
@@ -84,31 +138,63 @@ Each ADR includes context, rationale, alternatives considered, and consequences.
 
 ## Project Status
 
-Nova is in **Phase 0 — Foundation Engine**. The architecture has been through three independent reviews with two rounds of validation. The specification corpus is complete enough to build from.
+Nova has completed **Phase 0 — Foundation Engine**. The architecture has been through three independent reviews, validated by stress tests, and proven with a real business process.
 
-### What Exists Today
+### What's Working Now
 
-| Artifact | Status | Description |
-|----------|--------|-------------|
-| Architecture Spec | ✅ Complete | High-level system design (3,700 lines) |
-| Event Store Spec | ✅ Complete | Deep implementation spec with schemas, interfaces, APIs (2,350 lines) |
-| Financial Dimensions Spec | ✅ Complete | Dimensional accounting model (1,835 lines) |
-| Review Synthesis | ✅ Complete | All review feedback consolidated with decisions (1,088 lines) |
-| ADR Log | ✅ Complete | 18 architecture decisions with rationale (612 lines) |
-| NFR Document | ✅ Complete | Performance targets, phase gate criteria (405 lines) |
-| Build Plan | ✅ Complete | Week-by-week Phase 0 plan (538 lines) |
-| Document Index | ✅ Complete | Map of all 47 planned specifications (142 lines) |
-| **Working code** | 🔲 Phase 0 | Building now |
+| Capability | Status | Details |
+|-----------|--------|---------|
+| Event Store | ✅ Running | Append-only log, idempotency, concurrency control, schema versioning, multi-partition |
+| Entity Graph | ✅ Running | Flexible schemas, relationships, optimistic concurrency |
+| Rules Engine | ✅ Running | YAML config, effective dating, phased evaluation, audit traces |
+| Projection Engine | ✅ Running | Real-time updates, rebuild from replay, snapshots, dead-letter handling |
+| Intent Protocol | ✅ Running | Full pipeline with JWT auth, capabilities, approval workflows, SoD |
+| AP Invoice Lifecycle | ✅ Running | Submit → 3-way match → approve → post GL → pay (complete P2P cycle) |
+| Developer Dashboard | ✅ Running | Real-time event stream, projection views, intent launcher |
+| Stress Tests | ✅ Passing | 8 tests, PASS-TARGET achieved |
+| **Total Tests** | **118 passing** | Unit + integration + stress |
 
-### What's Being Built (Phase 0 — Walking Skeleton)
+### What's Next
 
-**Week 1-2 goal:** One intent flows through the complete pipeline — intent submitted → rules validate → event appended → projection updated → query returns result → audit trace complete.
+| Phase | Focus | Status |
+|-------|-------|--------|
+| Phase 1 | Governance — full security model, privacy engine with production KMS crypto-shredding, audit engine, RLS on all projections | Next |
+| Phase 2 | Organization + Finance — multi-legal-entity, financial dimensions, full GL, full AP | Planned |
+| Phase 3+ | Broader capabilities — AR, procurement, inventory, warehouse, production, CRM, agent framework | Planned |
 
-**Week 5-6 goal:** Full AP invoice lifecycle (submit → 3-way match → approve → post to GL → pay) running as stress test against the engine.
+See [`docs/roadmap/BUILD_PLAN.md`](docs/roadmap/BUILD_PLAN.md) for the detailed plan.
 
-**Phase 0 exit gate:** Automated stress tests verifying throughput (>2,000 events/sec), projection lag (<1s p99), concurrent correctness, idempotency, and financial reconciliation (zero variance).
+---
 
-See [`docs/roadmap/BUILD_PLAN.md`](docs/roadmap/BUILD_PLAN.md) for the complete plan.
+## Quick Start
+
+### Prerequisites
+
+- Node.js 20+ LTS
+- pnpm 8+
+- Docker (for PostgreSQL via Testcontainers)
+
+### Run Everything
+
+```bash
+git clone https://github.com/mcarvalho21/nova.git
+cd nova
+pnpm install
+
+# Option 1: Full demo experience
+pnpm demo:setup              # Start server + migrate
+pnpm seed                    # Populate with realistic data
+pnpm dashboard               # Open developer console
+
+# Option 2: Run tests
+pnpm test                    # Unit tests (39 tests)
+pnpm test:int                # Integration tests (79 tests, requires Docker)
+pnpm test:stress             # Stress tests (8 tests, requires Docker, takes ~5 min)
+
+# Option 3: Interactive demo
+pnpm demo:setup              # Start server + migrate
+pnpm demo                    # Narrated AP invoice walkthrough
+```
 
 ---
 
@@ -133,76 +219,23 @@ See [`docs/roadmap/BUILD_PLAN.md`](docs/roadmap/BUILD_PLAN.md) for the complete 
 | Language | TypeScript (strict mode) | Single language end-to-end; fast iteration; see ADR-005 |
 | Runtime | Node.js 20+ LTS | I/O-bound workloads; worker threads for CPU-bound tasks |
 | Database | PostgreSQL 16+ | Event store, entity graph, and projections — all in one; see ADR-002 |
+| API | Fastify | High-performance HTTP with schema validation |
+| Dashboard | React + Tailwind + Recharts | Developer console for visualization |
 | Package manager | pnpm | Workspace-aware, fast, disk-efficient |
 | Testing | Vitest + Testcontainers | Unit + integration with real PostgreSQL in Docker |
-| Load testing | k6 | Stress tests for phase gate criteria |
-
----
-
-## Repository Structure
-
-```
-nova/
-├── docs/
-│   ├── architecture/
-│   │   ├── OVERVIEW.md              # Full architecture specification
-│   │   └── ADR_LOG.md               # Architecture Decision Records
-│   ├── specs/
-│   │   ├── DOCUMENT_INDEX.md        # Map of all specifications
-│   │   ├── engine/                  # Core engine component specs
-│   │   ├── governance/              # Security, privacy, audit specs
-│   │   ├── organization/            # Multi-entity, dimensions specs
-│   │   ├── capabilities/            # Business capability specs (GL, AP, AR...)
-│   │   ├── agents/                  # Agent framework specs
-│   │   ├── interface/               # UI and interaction specs
-│   │   └── platform/               # Extensibility, localization, admin specs
-│   ├── reference/
-│   │   ├── REVIEW_SYNTHESIS.md      # Architecture review feedback + decisions
-│   │   └── NFR.md                   # Non-functional requirements
-│   ├── roadmap/
-│   │   └── BUILD_PLAN.md            # Phase-by-phase build plan
-│   ├── guides/
-│   │   ├── CONCEPTS.md              # Core concepts for newcomers
-│   │   ├── GETTING_STARTED.md       # Clone → run → see it work
-│   │   └── FIRST_CONTRIBUTION.md    # How to pick up your first task
-│   └── rfcs/
-│       └── TEMPLATE.md              # Template for community proposals
-│
-├── packages/
-│   ├── core/                        # Event store, entity graph, rules, projections
-│   ├── intent/                      # Intent protocol pipeline
-│   ├── governance/                  # Security, privacy, audit
-│   ├── capabilities/                # Business capabilities (GL, AP, AR...)
-│   ├── api/                         # REST API layer
-│   └── agents/                      # Agent framework and implementations
-│
-├── tests/
-│   ├── integration/                 # Full pipeline tests
-│   ├── load/                        # Stress tests (k6 scripts)
-│   └── fixtures/                    # Synthetic test data generators
-│
-├── config/                          # Rule definitions, projection configs
-├── migrations/                      # Database migrations
-│
-├── README.md
-├── CONTRIBUTING.md
-├── LICENSE
-├── package.json
-└── tsconfig.json
-```
 
 ---
 
 ## Contributing
 
-Nova is in early development and we welcome contributors — especially those with experience in ERP systems, event sourcing, distributed systems, or enterprise AI.
+Nova welcomes contributors — especially those with experience in ERP systems, event sourcing, distributed systems, or enterprise AI.
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for guidelines, and [`docs/roadmap/BUILD_PLAN.md`](docs/roadmap/BUILD_PLAN.md) for what's being built now.
 
 ### Good First Contributions
 
 - **Review a spec** — Read an implementation spec and file issues for gaps, ambiguities, or mistakes
-- **Write a queued spec** — The Document Index shows 41 specs still to be written, each with a clear scope
+- **Write a queued spec** — The Document Index shows 40 specs still to be written, each with a clear scope
 - **Implement a component** — Pick a spec, build it, test against acceptance criteria
 - **Add industry knowledge** — ERP domain expertise (manufacturing, distribution, retail) is as valuable as code
 
@@ -217,9 +250,3 @@ This means:
 - **You can** build commercial products on Nova
 - **If you modify** the engine and offer it as a service, you must share your modifications under the same license
 - **Documentation** can be freely shared and adapted with attribution
-
----
-
-## Contact
-
-For questions about architecture, contributions, or the project roadmap, open a Discussion on GitHub.
