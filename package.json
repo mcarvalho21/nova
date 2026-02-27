@@ -18,6 +18,7 @@
     "demo:setup": "tsx scripts/demo-setup.ts",
     "seed": "tsx scripts/seed.ts",
     "dev": "pnpm --filter @nova/api dev",
+    "dashboard": "pnpm --filter @nova/dashboard dev",
     "lint": "eslint packages/ --ext .ts",
     "format": "prettier --write 'packages/**/*.ts'",
     "typecheck": "tsc --noEmit",
