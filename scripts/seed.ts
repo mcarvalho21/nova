@@ -49,8 +49,8 @@ const BASE_URL = process.argv.includes('--base-url')
 
 const DB_CONFIG = {
   host: process.env.DB_HOST ?? 'localhost',
-  port: Number(process.env.DB_PORT ?? 5432),
-  database: process.env.DB_NAME ?? 'nova',
+  port: Number(process.env.DB_PORT ?? 5433),
+  database: process.env.DB_NAME ?? 'nova_demo',
   user: process.env.DB_USER ?? 'nova',
   password: process.env.DB_PASSWORD ?? 'nova',
 };
